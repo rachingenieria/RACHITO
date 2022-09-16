@@ -1,9 +1,14 @@
 #include <arduino.h>
 #include "motores.h"
 
-static int motord, motori;
+extern Motores motor;
 
-void Motor_Init(void)
+Motores::Motores(void)
+{
+  
+}
+
+void Motores::Motor_Init(int MI_AIN1,int MI_AIN2, int  MD_AIN1, int MD_AIN2)
 {
   pinMode(MOTORD_AIN1, OUTPUT);
   pinMode(MOTORD_AIN2, OUTPUT);
@@ -17,7 +22,7 @@ void Motor_Init(void)
 }
 
 //RANGO -1000 to 1000
-void SetSpeeds(int mi,int md)
+void Motores::SetSpeeds(int mi,int md)
 {
  motord = md/4;
  motori = mi/4 ;
@@ -71,31 +76,31 @@ void SetSpeeds(int mi,int md)
 }
 
 ISR(TIMER2_OVF_vect){
-    digitalWrite(MOTORI_AIN1, HIGH);
-    digitalWrite(MOTORI_AIN2, HIGH);
-    digitalWrite(MOTORD_AIN1, HIGH);
-    digitalWrite(MOTORD_AIN2, HIGH);
+    digitalWrite(motor.MOTORI_AIN1, HIGH);
+    digitalWrite(motor.MOTORI_AIN2, HIGH);
+    digitalWrite(motor.MOTORD_AIN1, HIGH);
+    digitalWrite(motor.MOTORD_AIN2, HIGH);
 }
 
 ISR(TIMER2_COMPA_vect){
   
- if(motori > 0)
+ if(motor.motori > 0)
   { 
-     digitalWrite(MOTORI_AIN2, LOW);
+     digitalWrite(motor.MOTORI_AIN2, LOW);
   }
-  else if(motori < 0) 
+  else if(motor.motori < 0) 
   {
-     digitalWrite(MOTORI_AIN1, LOW);
+     digitalWrite(motor.MOTORI_AIN1, LOW);
   }
 }
  
 ISR(TIMER2_COMPB_vect){
-   if(motord > 0)
+   if(motor.motord > 0)
   { 
-     digitalWrite(MOTORD_AIN1, LOW);
+     digitalWrite(motor.MOTORD_AIN1, LOW);
   }
-  else if(motord < 0) 
+  else if(motor.motord < 0) 
   {
-     digitalWrite(MOTORD_AIN2, LOW);
+     digitalWrite(motor.MOTORD_AIN2, LOW);
   }
 }

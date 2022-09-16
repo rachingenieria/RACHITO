@@ -7,34 +7,55 @@
 #include "api.h"
 #include "rachvel.h"
 
-//------------------------------------------------------------------------------------//
-int error[10];
-extern int sensores_b;
-unsigned int sensorValues[NUM_SENSORS];
+#define FIRMWARE_VERSION     15
+
 //--------------------------------------------------------------------------------------//
+
+rachvel Rachvel;
+Motores motor;
+slinea Slinea;
+
+//------------------------------------------------------------------------------------//
+//Asignacion de Pines de conexion
+
+//Sensores
+unsigned char sensorline_pins[NUM_SENSORS] = {A0,A1,A2,A3,A4,A5,A6,A7}; // SENSORES DEL 0 AL 8 QTR8
+
+//MOTOR - Cualquier GPIO funciona
+#define MI_AIN1    9
+#define MI_AIN2    3
+#define MD_AIN1    11   
+#define MD_AIN2    10
+
+// LISTADO DE PINES Y CONECCIONES
+#define LED1           7
+#define LED2           6
+#define SW1            5
+#define ON_RF          13
+
+//------------------------------------------------------------------------------------//
 //PARAMETROS del Control del Velocista
 //AQUI SE MODIFICAN LOS PARAMETROS DE COMPETENCIA
-rachvel Rachvel;
-
- 
+//VALORES DE CONTROL POR DEFECTO
 int   VELCIDAD_MAXIMA        = 30;       //Velocidad Maxima (entre 0 y 100)
 int   CTE_PROPORCIONAL       = 7;      //Constante de Control Proporcional (ente 1 y 20)
 int   CTE_DERIVATIVA         = 30;      //Constante de Control Diferencia (ente 1 y 20)
-int   V_TURBINA              = 30;      //Constante de Control Diferencia (ente 1 y 20)
-                                                                                                                                                                                                                            
+int   V_TURBINA              = 30;      //Constante de Control Diferencia (ente 1 y 20)                                                                                                                                                                                                                  
 int   PISTACOLOR             = 0;
 
 
+//------------------------------------------------------------------------------------//
 //Variables para Control Adicional
+int error[10];
 float power_difference, power_difference_ext;
 float power_difference_ant;
 int detect_recta_ant, detect_recta;
 char stat_sw = 0; 
+//------------------------------------------------------------------------------------//
  
 void setup()
 {
   int val;
-    
   
   pinMode(LED2, OUTPUT);
   pinMode(LED1, OUTPUT);
@@ -47,25 +68,23 @@ void setup()
    
   Serial.begin(115200);
 
-  Motor_Init();
-  SetSpeeds(0,0);
+  Slinea.Asignacion_Pines(sensorline_pins,8);
 
-Eeprom_read();
-  if(Rachvel.ver == FIRMWARE_VERSION)// DATOS CORRECTOS y CARGADOS
+  motor.Motor_Init(MI_AIN1,MI_AIN2,MD_AIN1,MD_AIN2);
+  motor.SetSpeeds(0,0);
+
+  Eeprom_read();
+  if(Rachvel.ver != FIRMWARE_VERSION)// DATOS CORRECTOS y CARGADOS
   {
-    //Rachvel.setupconfig(VELCIDAD_MAXIMA,CTE_PROPORCIONAL,CTE_DERIVATIVA,CTE_INTEGRAL,V_TURBINA);
-  }
-  else
-  {
-    Rachvel.setupconfig(VELCIDAD_MAXIMA,CTE_PROPORCIONAL,CTE_DERIVATIVA,V_TURBINA); //valres por DEFECTO
+    Rachvel.setupconfig(VELCIDAD_MAXIMA,CTE_PROPORCIONAL,CTE_DERIVATIVA,V_TURBINA,FIRMWARE_VERSION); //valres por DEFECTO
     Eeprom_save();
   }
+  
   int cursorz = 0;
   int menuactivo = 0;
   
-    // MENU DE CONFIGURACION
-    //Serial.println("RECIBIR DATOS POR BLUETOOTH");
-    Serial_send_variables();
+ // MENU DE CONFIGURACION
+ Serial_send_variables();
 
 
   digitalWrite(LED2, HIGH);
@@ -74,7 +93,7 @@ Eeprom_read();
   digitalWrite(LED2, LOW);
   digitalWrite(LED1, LOW);
   
-  SetSpeeds(0, 0); 
+  motor.SetSpeeds(0, 0); 
   val = 1;
   int mx = 0;
   int my = 0;
@@ -89,12 +108,12 @@ Eeprom_read();
          mx =  -(Rachvel.vavg * Rachvel.mx)/10;
          my =   (Rachvel.vavg * Rachvel.my)/10;
       
-      SetSpeeds(mx + my, mx - my);
+      motor.SetSpeeds(mx + my, mx - my);
       
   }while (val);
   
 
- SetSpeeds(0, 0); 
+  motor.SetSpeeds(0, 0); 
 
   digitalWrite(LED2, LOW);
   digitalWrite(LED1, LOW);
@@ -114,22 +133,22 @@ Eeprom_read();
 
 //-------------Instrucciones para Empezar a hacer la Calibracion de Sensores--------------------------------------//
   
-  Reset_Calibracion(); //ROBOT EN MEDIO DE LA LINEAS
-  Rachvel.colorlinea = Calibrar_Color_Linea(sensorValues);
+  Slinea.Reset_Calibracion(); //ROBOT EN MEDIO DE LA LINEAS
+  Rachvel.colorlinea = Slinea.Calibrar_Color_Linea();
   digitalWrite(LED2, LOW);
   digitalWrite(LED1, HIGH);
   
   //GIRA MIENTRA CALIBRA
-  SetSpeeds(-250, 250);
+  motor.SetSpeeds(-250, 250);
   int tiempo_cal = NUM_MUESTRAS + 1;
   while(tiempo_cal--)
   {
-      Calibrar_Sensores(sensorValues);
+      Slinea.Calibrar_Sensores();
       delay(5);
   }
   digitalWrite(LED2, HIGH);
   digitalWrite(LED1, LOW);
-  SetSpeeds(0, 0);
+  motor.SetSpeeds(0, 0);
 
   val = digitalRead(SW1);  
   Rachvel.position_line = 60;
@@ -137,7 +156,7 @@ Eeprom_read();
   while (val == HIGH )
           {
              val = digitalRead(SW1);  
-             Rachvel.position_line = Leer_linea(sensorValues,Rachvel.position_line ,Rachvel.colorlinea, 5 ); // leemos posicion de la linea en la variable position
+             Rachvel.position_line = Slinea.Leer_linea(Rachvel.position_line ,Rachvel.colorlinea, 5 ); // leemos posicion de la linea en la variable position
           
              
                if (Rachvel.position_line < -20)
@@ -159,14 +178,14 @@ Eeprom_read();
                 error[0]=Rachvel.position_line;
           
                 power_difference = (error[0] * Rachvel.kpg) + ((error[0] - error[4]) * Rachvel.kdg);
-                SetSpeeds( - power_difference,  power_difference);
+                motor.SetSpeeds( - power_difference,  power_difference);
               
                 delay(1);
 }
   
    //---------------------------FIN DE PRUEBA DE CALIBRACION----------------------------------------------------//
    //stop Motors
-  SetSpeeds(0,0);
+  motor.SetSpeeds(0,0);
   
   digitalWrite(LED2, LOW);
   digitalWrite(LED1, LOW);
@@ -188,7 +207,7 @@ Eeprom_read();
   while (val == HIGH )
   {    
      Serial_send_variables();
-     Rachvel.position_line = Leer_linea(sensorValues,Rachvel.position_line ,Rachvel.colorlinea, 5 ); 
+     Rachvel.position_line = Slinea.Leer_linea(Rachvel.position_line ,Rachvel.colorlinea, 5 ); 
      delay(100);
      val = digitalRead(SW1); 
   }
@@ -273,7 +292,7 @@ void loop()
    int rf_control = digitalRead(ON_RF);
    if (rf_control == 0 && stat_sw == 0)
    {
-       SetSpeeds(0, 0);
+       motor.SetSpeeds(0, 0);
        while(1)
        {
           digitalWrite(LED2, HIGH);
@@ -288,10 +307,10 @@ void loop()
 
    if (Rachvel.start == 0 && stat_sw == 1)
    {
-       SetSpeeds(0, 0);
+       motor.SetSpeeds(0, 0);
    }
    
-  Rachvel.position_line = Leer_linea(sensorValues,Rachvel.position_line ,Rachvel.colorlinea, 5 ); // leemos posicion de la linea en la variable position
+  Rachvel.position_line = Slinea.Leer_linea(Rachvel.position_line ,Rachvel.colorlinea, 5 ); // leemos posicion de la linea en la variable position
 
    
  if (Rachvel.position_line < -20)
@@ -340,7 +359,7 @@ void loop()
          {
              digitalWrite(LED2, LOW);
              digitalWrite(LED1, LOW);
-             SetSpeeds(-900, -900);
+             motor.SetSpeeds(-900, -900);
              delay(5);
          }
       }
@@ -352,11 +371,11 @@ void loop()
 
   if( Rachvel.start )
   {
-     SetSpeeds(vavg  - power_difference, vavg +  power_difference);
+     motor.SetSpeeds(vavg  - power_difference, vavg +  power_difference);
   }
   else
   {
-     SetSpeeds(0, 0);
+     motor.SetSpeeds(0, 0);
   }
   
   //SERIAL STOP

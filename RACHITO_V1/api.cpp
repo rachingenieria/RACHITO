@@ -1,9 +1,11 @@
 #include <arduino.h>
 #include "rachvel.h"
+#include "linea.h"
 #include "eeprom.h"
 #include "api.h"
 
 extern rachvel Rachvel;
+extern slinea Slinea;
 
 int API_CONFIG(char* uart_buffer_rx)
 {
@@ -157,7 +159,7 @@ void Serial_send_variables(void)
   for(int s=0; s<8; s++)
   {
      Serial.print(",");
-     Serial.print(Rachvel.S[s]);
+     Serial.print(Slinea.S[s]);
   }
   Serial.print(",");
 

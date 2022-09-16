@@ -9,13 +9,12 @@ rachvel::rachvel (void)
 }//constructor
 
 
-void  rachvel::setupconfig(int vavgx,int kpgx, int  kdgx, int pmw_tx)
+void  rachvel::setupconfig(int vavgx,int kpgx, int  kdgx, int pmw_tx,int firware_ver)
 {   
-    ver = FIRMWARE_VERSION;
+    ver = firware_ver;
     vavg = vavgx;
     kpg = kpgx;
     kdg = kdgx;
     pmw_t = pmw_tx;   //VEL VARIA DE 0 a 9
     Rachvel.start = 0xFF;
-  
 }

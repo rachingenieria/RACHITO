@@ -1,24 +1,23 @@
-#include "linea.h"
 #include <arduino.h>
-#include "rachvel.h"
 
-extern rachvel Rachvel;
-int minimo_general = 1024;
-int maximo_general = 0;
-   
-unsigned char pins[NUM_SENSORS] = {A0,A1,A2,A3,A4,A5,A6,A7}; // SENSORES DEL 0 AL 8 QTR8
-int pesos[NUM_SENSORS*2+2] = {-60,-60,-60,-60,-60,-35,-25,-15,-5,5,15,25,35,60,60,60,60,60}; // SENSORES DEL 0 AL 8 QTR8
+#include "linea.h"
 
-unsigned int sensorValues_max[NUM_SENSORS];
-unsigned int sensorValues_min[NUM_SENSORS];
-//unsigned int sensorValues_muestras[NUM_SENSORS][NUM_MUESTRAS];
-int num_muestras = 0;
-int sensores_b;
-int negro[8], blanco[8];
-int num_negro[8], num_blanco[8];
+extern slinea Slinea;
 
-    
-void Reset_Calibracion(void)
+slinea::slinea(void)
+{
+  
+}
+
+void slinea::Asignacion_Pines(unsigned char* sensors_pins, int sensor_num)
+{
+   for(int x=0; x<NUM_SENSORS && x<sensor_num; x++)
+   {
+      pins[x]=sensors_pins[x];
+   }
+}
+
+void slinea::Reset_Calibracion(void)
 {
    for(int x=0; x<NUM_SENSORS; x++)
    {
@@ -34,11 +33,11 @@ void Reset_Calibracion(void)
 }
 
 
-int Calibrar_Color_Linea(unsigned int* sensorValuesp)
+int slinea::Calibrar_Color_Linea(void)
 {  
    int color_fondo = 4;
 
-   Calibrar_Sensores (sensorValuesp);
+   Calibrar_Sensores ();
 
     for(int x=0; x<NUM_SENSORS; x++)
     {
@@ -53,9 +52,9 @@ int Calibrar_Color_Linea(unsigned int* sensorValuesp)
    
  while(color_fondo == 4)
  {
-     Leer_sensores (sensorValuesp);
+     Leer_sensores ();
      delay(500);
-     Leer_sensores (sensorValuesp);
+     Leer_sensores ();
      
     //fondo NEGRO - LINEA BLANCA
     if(sensorValuesp[0] > rango_comparacion && sensorValuesp[NUM_SENSORS-1] > rango_comparacion  )
@@ -73,26 +72,26 @@ return color_fondo;
 }
 
 
-void Calibrar_Sensores(unsigned int* sensorValuesp)
+void slinea::Calibrar_Sensores(void)
 {   
 
-    Leer_sensores (sensorValuesp);
+    Leer_sensores ();
  
     for(int x=0; x<NUM_SENSORS; x++)
      {
          if(num_muestras == NUM_MUESTRAS/2)
          {
-             Rachvel.discriminate[x] = (sensorValues_max[x] + sensorValues_min[x])/2; //DISCRIMINANTE TEMPORAL
+             discriminate[x] = (sensorValues_max[x] + sensorValues_min[x])/2; //DISCRIMINANTE TEMPORAL
          }
 
          if(num_muestras > NUM_MUESTRAS/2)
          {
-           if(sensorValuesp[x] < Rachvel.discriminate[x])
+           if(sensorValuesp[x] < discriminate[x])
              {
                     blanco[x] += sensorValuesp[x];
                     num_blanco[x] ++;
              }
-             if(sensorValuesp[x]> Rachvel.discriminate[x])
+             if(sensorValuesp[x]> discriminate[x])
              {
                     negro[x] += sensorValuesp[x];
                     num_negro[x] ++;
@@ -104,7 +103,7 @@ void Calibrar_Sensores(unsigned int* sensorValuesp)
               blanco[x] =  blanco[x]/num_blanco[x]; //MEDIA BLANCOS
               negro[x]  =  negro[x]/num_negro[x];   //MEDIA NEGROS
 
-              Rachvel.discriminate[x] = (blanco[x] + negro[x])/2; //DISCRIMINANTE FINAL
+              discriminate[x] = (blanco[x] + negro[x])/2; //DISCRIMINANTE FINAL
           }
        
        if(sensorValuesp[x] > sensorValues_max[x])
@@ -123,12 +122,12 @@ void Calibrar_Sensores(unsigned int* sensorValuesp)
 }
 
  
-int Leer_linea(unsigned int* sensorValuesp, int linea_anterior, int colorlinea , int setpoint)
+int slinea::Leer_linea(int linea_anterior, int colorlinea , int setpoint)
 {   
    int linea, suma, activos;
    int rango_comparacion;
    
-    Leer_sensores (sensorValuesp);
+    Leer_sensores ();
     
     suma = 0;
     linea = 0;
@@ -139,7 +138,7 @@ int Leer_linea(unsigned int* sensorValuesp, int linea_anterior, int colorlinea ,
     
     for(int x=0; x<NUM_SENSORS; x++)
      {
-        rango_comparacion = Rachvel.discriminate[x];
+        rango_comparacion = discriminate[x];
         //rango_comparacion = (sensorValues_max[x] + sensorValues_min[x])/2; //DISCRIMINANTE TEMPORAL
         
        if(colorlinea)
@@ -149,11 +148,11 @@ int Leer_linea(unsigned int* sensorValuesp, int linea_anterior, int colorlinea ,
                 suma += pesos[x + setpoint];
                 sensores_b += 1 << x;
                 activos ++;
-                Rachvel.S[x] = 1;
+                S[x] = 1;
              }
              else
              {
-               Rachvel.S[x] = 0;
+               S[x] = 0;
              }
        }
        else
@@ -163,11 +162,11 @@ int Leer_linea(unsigned int* sensorValuesp, int linea_anterior, int colorlinea ,
                 suma += pesos[x + setpoint];
                 sensores_b += 1 << x;
                 activos ++;
-                Rachvel.S[x] = 1;
+                S[x] = 1;
              }       
              else
              {
-                 Rachvel.S[x] = 0;
+                 S[x] = 0;
              }
        }
      }
@@ -192,7 +191,7 @@ int Leer_linea(unsigned int* sensorValuesp, int linea_anterior, int colorlinea ,
 }
 
 
-void Leer_sensores (unsigned int* sensorValuesp)
+void slinea::Leer_sensores (void)
 {
   int sensor_time = 0;
   int val;
