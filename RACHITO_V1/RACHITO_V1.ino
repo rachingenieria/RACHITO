@@ -7,7 +7,7 @@
 #include "api.h"
 #include "rachvel.h"
 
-#define FIRMWARE_VERSION     15
+#define FIRMWARE_VERSION     15 
 
 //--------------------------------------------------------------------------------------//
 
@@ -37,20 +37,27 @@ unsigned char sensorline_pins[NUM_SENSORS] = {A0,A1,A2,A3,A4,A5,A6,A7}; // SENSO
 //PARAMETROS del Control del Velocista
 //AQUI SE MODIFICAN LOS PARAMETROS DE COMPETENCIA
 //VALORES DE CONTROL POR DEFECTO
-int   VELCIDAD_MAXIMA        = 30;       //Velocidad Maxima (entre 0 y 100)
-int   CTE_PROPORCIONAL       = 7;      //Constante de Control Proporcional (ente 1 y 20)
-int   CTE_DERIVATIVA         = 30;      //Constante de Control Diferencia (ente 1 y 20)
+int   VELCIDAD_MAXIMA        = 36;       //Velocidad Maxima (entre 0 y 100)
+int   CTE_PROPORCIONAL       = 8;      //Constante de Control Proporcional (ente 1 y 20)
+int   CTE_DERIVATIVA         = 32;      //Constante de Control Diferencia (ente 1 y 20)
 int   V_TURBINA              = 30;      //Constante de Control Diferencia (ente 1 y 20)                                                                                                                                                                                                                  
 int   PISTACOLOR             = 0;
 
 
 //------------------------------------------------------------------------------------//
 //Variables para Control Adicional
-int error[10];
+#define BUFFER_ERROR 500 //Tamaño de recta a detectar
+
+int error[BUFFER_ERROR];
 float power_difference, power_difference_ext;
 float power_difference_ant;
+
+
 int detect_recta_ant, detect_recta;
 char stat_sw = 0; 
+
+int recta_tamano = 0;
+int recta_tamano_ultimo = 0;
 //------------------------------------------------------------------------------------//
  
 void setup()
@@ -282,6 +289,12 @@ void setup()
   }
 
    Rachvel.start = 0xFF; //START BLUETOOTH
+
+   digitalWrite(LED2, LOW);
+   digitalWrite(LED1, LOW); 
+
+   detect_recta_ant = 1;
+   detect_recta = 1;
   
 }
  
@@ -309,69 +322,94 @@ void loop()
    {
        motor.SetSpeeds(0, 0);
    }
-   
-  Rachvel.position_line = Slinea.Leer_linea(Rachvel.position_line ,Rachvel.colorlinea, 5 ); // leemos posicion de la linea en la variable position
 
-   
- if (Rachvel.position_line < -20)
- {
-     digitalWrite(LED2, LOW);
-     digitalWrite(LED1, HIGH); 
-  }
-  else  if (Rachvel.position_line > 20 )
+ if( Rachvel.start )
   {
-     digitalWrite(LED2, HIGH);
-     digitalWrite(LED1, LOW);    
-  }
+    Rachvel.position_line = Slinea.Leer_linea(Rachvel.position_line ,Rachvel.colorlinea, 5 ); // leemos posicion de la linea en la variable position
 
-
-  error[9]=error[8];
-  error[8]=error[7];
-  error[7]=error[6];
-  error[6]=error[5];
-  error[5]=error[4];
-  error[4]=error[3];
-  error[3]=error[2];
-  error[2]=error[1];
-  error[1]=error[0];
-  error[0]=Rachvel.position_line;
-
- detect_recta_ant = detect_recta;
- detect_recta = 1;
-
-      for(int i=0 ; i<10; i++)
-      {
-        if( error[i] > 8 || error[i] < -8)
-        {
-          detect_recta = 0;
+       /*
+       //led para curva
+       if (Rachvel.position_line < -20)
+       {
+           digitalWrite(LED2, LOW);
+           digitalWrite(LED1, HIGH); 
         }
+        else  if (Rachvel.position_line > 20 )
+        {
+           digitalWrite(LED2, HIGH);
+           digitalWrite(LED1, LOW);    
+        }
+      */
 
+   
+   //Valores anteriores
+    for(int ind = BUFFER_ERROR-1; ind > 0 ; ind --)
+    {
+      error[ind] = error[ind-1];
+    }
+     error[0] = Rachvel.position_line;
+    
+
+    int vavg= Rachvel.vavg;
+    vavg = vavg*10; 
+    power_difference = (error[0] * Rachvel.kpg) + ((error[0] - error[5]) * Rachvel.kdg);
+
+    //Calculo de Recta
+    
+    recta_tamano = 0;
+    int suma_recta = 0;
+    detect_recta_ant = 1;
+    detect_recta = 1;
+   
+    
+     for(int i=0 ; i<BUFFER_ERROR; i++)
+      {
+        if( error[i] > 20 || error[i] < -20)
+        {
+          i = BUFFER_ERROR; //Frenar el Calculo
+          suma_recta = error[i];
+        }
+        else
+        {
+           recta_tamano++;
+        }
       }
 
-      if(detect_recta) //es RECTA
+
+      if(recta_tamano > 300) //Tamaño minimo de recta para frenar
       {
-         digitalWrite(LED2, HIGH);
-         digitalWrite(LED1, HIGH);
+         recta_tamano_ultimo = recta_tamano; //Guarda el ultimo tamaño de recta Valido
       }
-      else //ES CURVA
+      else if (recta_tamano == 0) //En curva
       {
-         if(detect_recta_ant) //ENTRA A CURVA
+         if(recta_tamano_ultimo > 300) //es curva viviendo de recta
          {
-             digitalWrite(LED2, LOW);
-             digitalWrite(LED1, LOW);
-             motor.SetSpeeds(-900, -900);
-             delay(5);
+           digitalWrite(LED2, HIGH);
+           digitalWrite(LED1, HIGH); 
+           //motor.SetSpeeds(-30,vavg); //Freno
+           //delay(80); //tiempo proporcional a la longitud de la recta
+           //motor.SetSpeeds(vavg,vavg); //Freno
+           //delay(100); //tiempo proporcional a la longitud de la recta
+           digitalWrite(LED2, LOW);
+           digitalWrite(LED1, LOW); 
          }
+         recta_tamano_ultimo = 0; //En curva borra el tamaño de la recta valiad
       }
-
-
-  int vavg= Rachvel.vavg;
-  vavg = vavg*10;
-  power_difference = (error[0] * Rachvel.kpg) + ((error[0] - error[4]) * Rachvel.kdg);
-
-  if( Rachvel.start )
-  {
-     motor.SetSpeeds(vavg  - power_difference, vavg +  power_difference);
+      
+ 
+     //motor.SetSpeeds(vavg  - power_difference, vavg +  power_difference);
+     if(power_difference > 0)
+     {
+       motor.SetSpeeds(vavg  - power_difference, vavg);
+     }
+     else if(power_difference < 0)
+     {
+       motor.SetSpeeds(vavg, vavg +  power_difference);
+     }
+     else
+     {
+       motor.SetSpeeds(vavg,vavg);
+     }
   }
   else
   {

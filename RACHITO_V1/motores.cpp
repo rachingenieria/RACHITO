@@ -10,10 +10,16 @@ Motores::Motores(void)
 
 void Motores::Motor_Init(int MI_AIN1,int MI_AIN2, int  MD_AIN1, int MD_AIN2)
 {
-  pinMode(MOTORD_AIN1, OUTPUT);
-  pinMode(MOTORD_AIN2, OUTPUT);
-  pinMode(MOTORI_AIN1, OUTPUT);
-  pinMode(MOTORI_AIN2, OUTPUT);
+
+  motor.MOTORD_AIN1 = MD_AIN1;
+  motor.MOTORD_AIN2 = MD_AIN2;
+  motor.MOTORI_AIN1 = MI_AIN1;
+  motor.MOTORI_AIN2 = MI_AIN2;
+  
+  pinMode(MD_AIN1, OUTPUT);
+  pinMode(MD_AIN2, OUTPUT);
+  pinMode(MI_AIN1, OUTPUT);
+  pinMode(MI_AIN2, OUTPUT);
 
   TCCR2A =   B00000011;  // Fast PWM MODE - OCA DISCONETED
   TCCR2B =  (TCCR2A & B11110111) ;  
