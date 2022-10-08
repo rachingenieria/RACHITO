@@ -46,7 +46,7 @@ int   PISTACOLOR             = 0;
 
 //------------------------------------------------------------------------------------//
 //Variables para Control Adicional
-#define BUFFER_ERROR 500 //Tamaño de recta a detectar
+#define BUFFER_ERROR 300 //Tamaño de recta a detectar
 
 int error[BUFFER_ERROR];
 float power_difference, power_difference_ext;
@@ -354,46 +354,44 @@ void loop()
     vavg = vavg*10; 
     power_difference = (error[0] * Rachvel.kpg) + ((error[0] - error[5]) * Rachvel.kdg);
 
-    //Calculo de Recta
-    
-    recta_tamano = 0;
+    //Calculo de Recta  
     int suma_recta = 0;
-    detect_recta_ant = 1;
-    detect_recta = 1;
-   
+    int sensor_curva = 0;
     
+    detect_recta_ant = detect_recta;
+   detect_recta = 0;
+   
      for(int i=0 ; i<BUFFER_ERROR; i++)
       {
+        suma_recta = error[i];
         if( error[i] > 20 || error[i] < -20)
         {
-          i = BUFFER_ERROR; //Frenar el Calculo
-          suma_recta = error[i];
-        }
-        else
-        {
-           recta_tamano++;
+          sensor_curva = 1;
         }
       }
 
+    suma_recta = suma_recta/BUFFER_ERROR;
 
-      if(recta_tamano > 300) //Tamaño minimo de recta para frenar
+    if(sensor_curva == 0)
+    {
+      if(abs(suma_recta) < 8)
       {
-         recta_tamano_ultimo = recta_tamano; //Guarda el ultimo tamaño de recta Valido
+        detect_recta = 1;
       }
-      else if (recta_tamano == 0) //En curva
+    }
+    
+
+
+      if(detect_recta == 0 && detect_recta_ant == 1) //CAmbio de Recta a curva
       {
-         if(recta_tamano_ultimo > 300) //es curva viviendo de recta
-         {
            digitalWrite(LED2, HIGH);
            digitalWrite(LED1, HIGH); 
-           //motor.SetSpeeds(-30,vavg); //Freno
-           //delay(80); //tiempo proporcional a la longitud de la recta
+           motor.SetSpeeds(-30,-30); //Freno
+           delay(80); //tiempo proporcional a la longitud de la recta
            //motor.SetSpeeds(vavg,vavg); //Freno
            //delay(100); //tiempo proporcional a la longitud de la recta
            digitalWrite(LED2, LOW);
            digitalWrite(LED1, LOW); 
-         }
-         recta_tamano_ultimo = 0; //En curva borra el tamaño de la recta valiad
       }
       
  
