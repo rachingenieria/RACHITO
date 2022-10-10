@@ -386,8 +386,8 @@ void loop()
       {
            digitalWrite(LED2, HIGH);
            digitalWrite(LED1, HIGH); 
-           motor.SetSpeeds(-30,-30); //Freno
-           delay(80); //tiempo proporcional a la longitud de la recta
+           motor.SetSpeeds(-50,-50); //Freno
+           delay(15); //tiempo proporcional a la longitud de la recta
            //motor.SetSpeeds(vavg,vavg); //Freno
            //delay(100); //tiempo proporcional a la longitud de la recta
            digitalWrite(LED2, LOW);
