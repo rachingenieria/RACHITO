@@ -352,7 +352,7 @@ void loop()
 
     int vavg= Rachvel.vavg;
     vavg = vavg*10; 
-    power_difference = (error[0] * Rachvel.kpg) + ((error[0] - error[5]) * Rachvel.kdg);
+    power_difference = (error[0] * Rachvel.kpg) + ((error[0] - error[6]) * Rachvel.kdg);
 
     //Calculo de Recta  
     int suma_recta = 0;
@@ -398,11 +398,13 @@ void loop()
      //motor.SetSpeeds(vavg  - power_difference, vavg +  power_difference);
      if(power_difference > 0)
      {
-       motor.SetSpeeds(vavg  - power_difference, vavg);
+       motor.SetSpeeds(vavg  - power_difference,  vavg +  (power_difference*0.2));
+        //motor.SetSpeeds(vavg  - power_difference, vavg);
      }
      else if(power_difference < 0)
      {
-       motor.SetSpeeds(vavg, vavg +  power_difference);
+        motor.SetSpeeds(vavg  - (power_difference*0.2), vavg +  power_difference);
+        //motor.SetSpeeds(vavg  - power_difference, vavg);
      }
      else
      {

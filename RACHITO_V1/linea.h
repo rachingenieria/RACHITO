@@ -29,7 +29,7 @@ class slinea
         //variables de control
         int sensor_num;
         unsigned char pins[NUM_SENSORS];
-        int pesos[NUM_SENSORS*2+2] = {-60,-60,-60,-60,-60,-35,-25,-15,-5,5,15,25,35,60,60,60,60,60}; // SENSORES DEL 0 AL 8 QTR8
+        int pesos[NUM_SENSORS*2+2] = {-45,-45,-45,-45,-45,-35,-20,-10,-5,5,10,20,35,45,45,45,45,45}; // SENSORES DEL 0 AL 8 QTR8
         
         int sensorValuesp[NUM_SENSORS];
         unsigned int sensorValues_max[NUM_SENSORS];
